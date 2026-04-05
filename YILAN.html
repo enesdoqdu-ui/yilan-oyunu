@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>NEON SNAKE: ULTIMATE PRO</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <style>
+        :root {
+            --neon-pink: #ff0055;
+            --neon-blue: #00f2ff;
+            --neon-purple: #7a00ff;
+            --neon-green: #00ffcc;
+            --neon-yellow: #ffcc00;
+        }
+
+        body { 
+            margin: 0; background: #020205; color: var(--neon-blue); 
+            font-family: 'Segoe UI', Roboto, sans-serif; overflow: hidden;
+            touch-action: none;
+        }
+        
+        /* Oyun İçi Skor Paneli */
+        #ui { 
+            position: absolute; top: 20px; left: 20px; font-size: 16px; 
+            text-shadow: 0 0 10px var(--neon-blue); font-weight: bold; z-index: 10;
+            background: rgba(0, 0, 0, 0.85); padding: 12px 20px; 
+            border-radius: 12px; border: 1px solid rgba(0, 242, 255, 0.3);
+            pointer-events: none; letter-spacing: 1px; backdrop-filter: blur(5px);
+        }
+
+        /* Ortak Panel Tasarımı */
+        .overlay {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            text-align: center; background: rgba(2, 2, 15, 0.98); 
+            padding: 30px; border: 2px solid var(--neon-purple); 
+            border-radius: 24px; box-shadow: 0 0 50px rgba(122, 0, 255, 0.4); 
+            z-index: 20; width: 85%; max-width: 450px; display: none;
+        }
+
+        #startScreen { display: block; } /* İlk başta bu görünür */
+        
+        h1 { color: var(--neon-pink); margin: 0 0 20px 0; font-size: 36px; letter-spacing: 3px; text-shadow: 0 0 20px var(--neon-pink); }
+        
+        /* Buton Stilleri */
+        .btn { 
+            padding: 16px; font-size: 18px; cursor: pointer; 
+            border: none; border-radius: 12px; font-weight: bold; 
+            transition: all 0.2s ease; text-transform: uppercase; 
+            letter-spacing: 2px; width: 100%; margin-bottom: 15px;
+            display: block;
+        }
+        .btn-start { background: var(--neon-green); color: #000; box-shadow: 0 0 20px var(--neon-green); }
+        .btn-info { background: transparent; color: var(--neon-blue); border: 2px solid var(--neon-blue); }
+        .btn-close { background: var(--neon-pink); color: #fff; margin-top: 10px; }
+        
+        .btn:active { transform: scale(0.95); }
+
+        /* Rehber Penceresi (Modal) */
+        #guideModal {
+            text-align: left;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .guide-list { list-style: none; padding: 0; margin: 15px 0; }
+        .guide-item { 
+            display: flex; align-items: center; margin-bottom: 12px; 
+            background: rgba(255,255,255,0.05); padding: 10px; border-radius: 10px;
+        }
+        .icon-box { width: 18px; height: 18px; margin-right: 12px; border: 2px solid; flex-shrink: 0; }
+
+        #finalScore { font-size: 100px; color: #fff; font-weight: 900; margin: 10px 0; text-shadow: 0 0 30px var(--neon-purple); }
+        
+        canvas { display: block; filter: contrast(1.1) brightness(1.1); }
+    </style>
+</head>
+<body>
+
+<div id="ui">SKOR: 0 | EN İYİ: 0 | MOD: NORMAL</div>
+
+<div id="startScreen" class="overlay">
+    <h1>SİSTEM: HAZIR</h1>
+    <button class="btn btn-start" onclick="startGame()">OYUNU BAŞLAT</button>
+    <button class="btn btn-info" onclick="toggleGuide(true)">NASIL OYNANIR?</button>
+</div>
+
+<div id="guideModal" class="overlay">
+    <h1 style="font-size: 24px;">REHBER</h1>
+    <p style="font-size: 14px; color: #fff;">Mobil: Kaydırarak Yön Ver | PC: WASD Tuşları</p>
+    
+    <div class="guide-list">
+        <div class="guide-item"><div class="icon-box" style="border-color: var(--neon-blue);"></div> <span><b>Normal:</b> +1 Puan kazandırır.</span></div>
+        <div class="guide-item"><div class="icon-box" style="border-color: var(--neon-pink); background: var(--neon-pink);"></div> <span><b>Büyük:</b> +5 Puan ve sarsıntı.</span></div>
+        <div class="guide-item"><div class="icon-box" style="border-color: var(--neon-yellow);"></div> <span><b>Turbo:</b> Hızı 6 saniyeliğine artırır.</span></div>
+        <div class="guide-item"><div class="icon-box" style="border-color: #fff;"></div> <span><b>Mıknatıs:</b> Yemleri yakına çeker.</span></div>
+        <div class="guide-item"><div class="icon-box" style="border-color: #0077ff;"></div> <span><b>Kalkan:</b> Engele çarpmayı önler.</span></div>
+        <div class="guide-item"><div class="icon-box" style="border-color: #555; background: #333;"></div> <span><b>Engel:</b> Çarparsan sistem çöker!</span></div>
+    </div>
+    
+    <button class="btn btn-close" onclick="toggleGuide(false)">KAPAT ✖</button>
+</div>
+
+<div id="gameOver" class="overlay">
+    <h1>YANDIN</h1>
+    <div id="finalScore">0</div>
+    <button class="btn btn-start" onclick="restartGame()">TEKRAR DENE</button>
+    <button class="btn btn-info" onclick="backToMenu()">ANA MENÜ</button>
+</div>
+
+<canvas id="game"></canvas>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+const GRID_SIZE = 20;
+
+let state = {
+    width: 0, height: 0, snake: [],
+    direction: { x: GRID_SIZE, y: 0 },
+    nextDirection: { x: GRID_SIZE, y: 0 },
+    food: null, score: 0,
+    bestScore: parseInt(localStorage.getItem("bestScorePro")) || 0,
+    obstacles: [], particles: [], shake: 0,
+    isRunning: false, isGameOver: false,
+    powers: { turbo: false, magnet: false, shield: false },
+    hue: 0
+};
+
+function resize() {
+    state.width = canvas.width = Math.floor(window.innerWidth / GRID_SIZE) * GRID_SIZE;
+    state.height = canvas.height = Math.floor(window.innerHeight / GRID_SIZE) * GRID_SIZE;
+}
+window.addEventListener('resize', resize);
+resize();
+
+// UI Altında nesne çıkmasını engelleme (Pro Kural)
+function getSafePos() {
+    let pos;
+    do {
+        pos = {
+            x: Math.floor(Math.random() * (state.width / GRID_SIZE)) * GRID_SIZE,
+            y: Math.floor(Math.random() * (state.height / GRID_SIZE)) * GRID_SIZE
+        };
+    } while ( (pos.x < 350 && pos.y < 120) || state.snake.some(s => s.x === pos.x && s.y === pos.y));
+    return pos;
+}
+
+function spawnFood() {
+    const types = ["normal", "normal", "big", "turbo", "magnet", "shield"];
+    state.food = { ...getSafePos(), type: types[Math.floor(Math.random() * types.length)] };
+}
+
+function spawnObstacle() {
+    state.obstacles.push(getSafePos());
+    if (state.obstacles.length > 25) state.obstacles.shift();
+}
+
+function init() {
+    state.snake = [];
+    for(let i=4; i>=0; i--) state.snake.push({x: 200 + i*GRID_SIZE, y: 300});
+    state.direction = { x: GRID_SIZE, y: 0 };
+    state.nextDirection = { x: GRID_SIZE, y: 0 };
+    state.score = 0; state.obstacles = []; state.particles = [];
+    state.powers = { turbo: false, magnet: false, shield: false };
+    state.isGameOver = false;
+    for (let i = 0; i < 5; i++) spawnObstacle();
+    spawnFood();
+}
+
+function update() {
+    if (!state.isRunning || state.isGameOver) return;
+    if (state.shake > 0) state.shake--;
+
+    state.direction = state.nextDirection;
+    let head = { x: state.snake[0].x + state.direction.x, y: state.snake[0].y + state.direction.y };
+
+    if (head.x < 0) head.x = state.width - GRID_SIZE;
+    else if (head.x >= state.width) head.x = 0;
+    if (head.y < 0) head.y = state.height - GRID_SIZE;
+    else if (head.y >= state.height) head.y = 0;
+
+    if (state.snake.some(p => p.x === head.x && p.y === head.y)) return gameOver();
+    
+    const obsIdx = state.obstacles.findIndex(o => o.x === head.x && o.y === head.y);
+    if (obsIdx !== -1) {
+        if (state.powers.shield) {
+            state.powers.shield = false;
+            state.obstacles.splice(obsIdx, 1);
+            state.shake = 15;
+        } else return gameOver();
+    }
+
+    state.snake.unshift(head);
+
+    if (head.x === state.food.x && head.y === state.food.y) {
+        state.score += (state.food.type === "big" ? 5 : 1);
+        if (state.food.type === "turbo") { state.powers.turbo = true; setTimeout(() => state.powers.turbo = false, 6000); }
+        if (state.food.type === "magnet") { state.powers.magnet = true; setTimeout(() => state.powers.magnet = false, 8000); }
+        if (state.food.type === "shield") state.powers.shield = true;
+        if (state.score % 5 === 0) spawnObstacle();
+        spawnFood();
+        state.shake = 5;
+    } else {
+        state.snake.pop();
+    }
+
+    if (state.powers.magnet && state.food) {
+        const dX = head.x - state.food.x;
+        const dY = head.y - state.food.y;
+        if (Math.abs(dX) < 160 && Math.abs(dY) < 160) {
+            if (dX !== 0) state.food.x += Math.sign(dX) * GRID_SIZE;
+            if (dY !== 0) state.food.y += Math.sign(dY) * GRID_SIZE;
+        }
+    }
+}
+
+function draw() {
+    ctx.fillStyle = "#020205";
+    ctx.fillRect(0, 0, state.width, state.height);
+    
+    ctx.save();
+    if (state.shake > 0) ctx.translate((Math.random()-0.5)*state.shake, (Math.random()-0.5)*state.shake);
+
+    state.obstacles.forEach(o => {
+        ctx.fillStyle = "#333"; ctx.strokeStyle = varColor('--neon-pink');
+        ctx.lineWidth = 2; ctx.strokeRect(o.x+2, o.y+2, GRID_SIZE-4, GRID_SIZE-4);
+    });
+
+    state.snake.forEach((p, i) => {
+        ctx.fillStyle = i === 0 ? "#fff" : `hsl(${180 + (i*5)}, 100%, 50%)`;
+        ctx.shadowBlur = i === 0 ? 15 : 5; ctx.shadowColor = ctx.fillStyle;
+        ctx.fillRect(p.x+1, p.y+1, GRID_SIZE-2, GRID_SIZE-2);
+    });
+
+    if (state.food) {
+        const colors = {normal:"#0ff", big:"#ff00ff", turbo:"#ffcc00", magnet:"#fff", shield:"#0077ff"};
+        ctx.fillStyle = colors[state.food.type];
+        ctx.shadowBlur = 15; ctx.shadowColor = ctx.fillStyle;
+        ctx.fillRect(state.food.x+4, state.food.y+4, GRID_SIZE-8, GRID_SIZE-8);
+    }
+    ctx.restore();
+    updateUI();
+}
+
+function updateUI() {
+    if (state.score > state.bestScore) {
+        state.bestScore = state.score;
+        localStorage.setItem("bestScorePro", state.bestScore);
+    }
+    document.getElementById("ui").innerHTML = `SKOR: <b>${state.score}</b> | EN İYİ: ${state.bestScore} | MOD: ${state.powers.turbo ? 'TURBO' : 'NORMAL'}`;
+}
+
+function toggleGuide(show) {
+    document.getElementById("guideModal").style.display = show ? "block" : "none";
+    document.getElementById("startScreen").style.display = show ? "none" : "block";
+}
+
+function startGame() {
+    document.getElementById("startScreen").style.display = "none";
+    init();
+    state.isRunning = true;
+}
+
+function gameOver() {
+    state.isGameOver = true;
+    state.shake = 30;
+    document.getElementById("finalScore").innerText = state.score;
+    document.getElementById("gameOver").style.display = "block";
+}
+
+function restartGame() {
+    document.getElementById("gameOver").style.display = "none";
+    init();
+}
+
+function backToMenu() {
+    document.getElementById("gameOver").style.display = "none";
+    document.getElementById("startScreen").style.display = "block";
+    state.isRunning = false;
+}
+
+function varColor(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+
+function loop() {
+    update();
+    draw();
+    setTimeout(loop, state.powers.turbo ? 50 : 90);
+}
+
+// Kontroller (Ghost-turn korumalı)
+window.addEventListener("keydown", e => {
+    const key = e.key.toLowerCase();
+    if ((key === "w" || key === "arrowup") && state.direction.y === 0) state.nextDirection = { x: 0, y: -GRID_SIZE };
+    if ((key === "s" || key === "arrowdown") && state.direction.y === 0) state.nextDirection = { x: 0, y: GRID_SIZE };
+    if ((key === "a" || key === "arrowleft") && state.direction.x === 0) state.nextDirection = { x: -GRID_SIZE, y: 0 };
+    if ((key === "d" || key === "arrowright") && state.direction.x === 0) state.nextDirection = { x: GRID_SIZE, y: 0 };
+});
+
+loop();
+</script>
+</body>
+</html>
